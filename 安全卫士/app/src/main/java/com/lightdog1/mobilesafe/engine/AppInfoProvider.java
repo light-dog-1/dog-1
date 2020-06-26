@@ -5,13 +5,15 @@ import java.util.List;
 import android.content.pm.PackageInfo;
 import com.lightdog1.mobilesafe.db.domain.AppInfo;
 import android.content.pm.ApplicationInfo;
+import java.util.ArrayList;
 
 public class AppInfoProvider {
     
-    public static void getAppInfoList(Context ctx)
+    public static List<AppInfo> getAppInfoList(Context ctx)
 	{
 		PackageManager pManager=ctx.getPackageManager();
 		List<PackageInfo> pList=pManager.getInstalledPackages(0);
+		List<AppInfo> infolist=new ArrayList<AppInfo>();
 		for(PackageInfo pi:pList)
 		{
 			AppInfo appinfo=new AppInfo();
@@ -35,9 +37,9 @@ public class AppInfoProvider {
 			}else{
 				appinfo.setIsSDcard(false);
 			}
-			
+			infolist.add(appinfo);
 		}
-
+		return infolist;
 	}
 
 }
