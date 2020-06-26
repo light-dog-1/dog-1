@@ -1,32 +1,46 @@
 package com.lightdog1.mobilesafe.activity;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.os.StatFs;
 import android.text.format.Formatter;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+import android.view.animation.AnimationSet;
+import android.view.animation.ScaleAnimation;
+import android.widget.AbsListView;
+import android.widget.AbsListView.OnScrollListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.BaseAdapter;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import com.lightdog1.mobilesafe.R;
 import com.lightdog1.mobilesafe.db.domain.AppInfo;
-import java.util.List;
 import com.lightdog1.mobilesafe.engine.AppInfoProvider;
-import android.widget.ListView;
-import android.os.Handler;
-import android.os.Message;
-import android.widget.BaseAdapter;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ImageView;
+import com.lightdog1.mobilesafe.utils.ToastUtil;
 import java.util.ArrayList;
-import android.widget.AbsListView.OnScrollListener;
-import android.widget.AbsListView;
+import java.util.List;
 
-public class AppManagerActivity extends Activity {
+public class AppManagerActivity extends Activity implements OnClickListener{
 
 	private TextView tv_mSize,tv_SDSize,tv_des;
 	private List<AppInfo> mS_appifliat,mc_appiflist;
 	private ListView lv_applist;
 	private MyAdapter mAdapter;
+	private AppInfo mAppinfo;
 	private Handler mHandler=new Handler(){
 
 		@Override
@@ -115,6 +129,68 @@ public class AppManagerActivity extends Activity {
 		TextView tv_title;
 	}
 
+	@Override
+	protected void onResume() {
+		getData();
+		super.onResume();
+	}
+
+	private void getData() {
+		new Thread(new Runnable(){
+
+				@Override
+				public void run() {
+					List<AppInfo> appListInfo=AppInfoProvider.getAppInfoList(getApplicationContext());
+					for (AppInfo appinfo:appListInfo) {
+						if (appinfo.isSystem()) {
+							mS_appifliat.add(appinfo);
+						} else {
+							mc_appiflist.add(appinfo);
+						}
+					}
+					mHandler.sendEmptyMessage(0);
+				}
+			}).start();
+	}
+	
+
+	@Override
+	public void onClick(View p1) {
+	    switch(p1.getId()){
+			case R.id.popupwindow_tv_uninstall:
+				if(mAppinfo.isSystem())
+				{
+					ToastUtil.show(getApplicationContext(),"此应用不能卸载");
+				}else
+				{
+					Intent intent=new Intent("android.intent.action.DELETE");
+					intent.addCategory("android.intent.category.DEFAULT");
+					intent.setData(Uri.parse("package:"+mAppinfo.getPackageName()));
+					startActivity(intent);
+				}
+				break;
+			case R.id.popupwindow_tv_start:
+				//通过桌面启动应用
+				PackageManager pm=getPackageManager();
+				Intent it=pm.getLaunchIntentForPackage(mAppinfo.getPackageName());
+				if(it!=null)
+				{
+					startActivity(it);
+				}else{
+					ToastUtil.show(getApplicationContext(),"无法启动");
+				}
+				break;
+			case R.id.popupwindow_tv_share:
+				//分享(第三方(新浪,微信,qq)),智慧北京
+				Intent intent=new Intent();
+				intent.putExtra(Intent.EXTRA_TEXT,"分享一个应用,应用名称为"+mAppinfo.getName());
+				intent.setType("text/plain");
+				startActivity(intent);
+				
+				break;
+		}
+	}
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,21 +228,7 @@ public class AppManagerActivity extends Activity {
 
 		mS_appifliat = new ArrayList<>();
 		mc_appiflist = new ArrayList<>();
-		new Thread(new Runnable(){
-
-				@Override
-				public void run() {
-					List<AppInfo> appListInfo=AppInfoProvider.getAppInfoList(getApplicationContext());
-					for (AppInfo appinfo:appListInfo) {
-						if (appinfo.isSystem()) {
-							mS_appifliat.add(appinfo);
-						} else {
-							mc_appiflist.add(appinfo);
-						}
-					}
-					mHandler.sendEmptyMessage(0);
-				}
-			}).start();
+		
 		lv_applist.setOnScrollListener(new OnScrollListener(){
 
 				@Override
@@ -184,6 +246,60 @@ public class AppManagerActivity extends Activity {
 					}
 				}
 			});
+		lv_applist.setOnItemClickListener(new OnItemClickListener(){
+
+				@Override
+				public void onItemClick(AdapterView<?> parent, View view, int pos, long id) {
+					if (pos == 0 || pos == mc_appiflist.size() + 1) {
+						return;
+					} else if (pos > mc_appiflist.size() + 1) {
+						mAppinfo= mS_appifliat.get(pos - mc_appiflist.size() - 1);
+					} else {
+						mAppinfo= mc_appiflist.get(pos - 1);
+					}
+					showPopupWindow(view);
+				}
+			});
+	}
+	public void showPopupWindow(View v)
+	{
+		View view=View.inflate(this,R.layout.popupwindow_layout,null);
+		TextView tv_uninstall=view.findViewById(R.id.popupwindow_tv_uninstall);
+		TextView tv_start=view.findViewById(R.id.popupwindow_tv_start);
+		TextView tv_share=view.findViewById(R.id.popupwindow_tv_share);
+		
+		tv_uninstall.setOnClickListener(this);
+		tv_start.setOnClickListener(this);
+		tv_share.setOnClickListener(this);
+		
+		//透明动画
+		AlphaAnimation alphaAnimation=new AlphaAnimation(0,1);
+		alphaAnimation.setDuration(500);
+		//保留动画最终位置
+		alphaAnimation.setFillAfter(true);
+		
+		//
+		ScaleAnimation scaleAnmation=new ScaleAnimation(
+		0,1,
+		0,1,
+		Animation.RELATIVE_TO_SELF,0.5f,
+		Animation.RELATIVE_TO_SELF,0.5f
+		);
+		scaleAnmation.setDuration(500);
+		scaleAnmation.setFillAfter(true);
+		
+		//动画集合
+		AnimationSet animationSet=new AnimationSet(true);
+		animationSet.addAnimation(scaleAnmation);
+		animationSet.addAnimation(alphaAnimation);
+		
+		PopupWindow popupWindow= new PopupWindow(view, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true);
+		//设置透明北京(低版本需要设置北京才能响应返回键)
+		//popupWindow.setBackgroundDrawable(new ColorDrawable());
+		popupWindow.showAsDropDown(v,60,-(v.getHeight()+75));
+		
+		view.startAnimation(animationSet);
+		
 	}
 
 }
