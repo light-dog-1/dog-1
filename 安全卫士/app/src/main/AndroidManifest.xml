@@ -53,6 +53,12 @@
     <!-- 新建/修改/删除通话记录 -->
     <uses-permission android:name="android.permission.WRITE_CALL_LOG"/>
 
+    <!-- 读取短信 -->
+    <uses-permission android:name="android.permission.READ_SMS"/>
+
+    <!-- WRITE_SMS -->
+    <uses-permission android:name="android.permission.WRITE_SMS"/>
+
     <uses-sdk
         android:minSdkVersion="8"
         android:targetSdkVersion="17"/>
@@ -133,6 +139,8 @@
 
         <activity android:name="com.lightdog1.mobilesafe.activity.QueryAddressActivity"/>
 
+		<activity android:name="com.lightdog1.mobilesafe.activity.AppManagerActivity"/>
+			
         <activity
             android:name="com.lightdog1.mobilesafe.activity.ToastLocationActivity"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
